@@ -1,0 +1,18 @@
+ttcdt-huff - Huffman encoding library
+=====================================
+
+This code is my own implementation of the Huffman encoding
+algorithm. Though it has been written for teaching purposes,
+it's reasonably optimized for real use cases.
+
+A command-line tool is provided with this library; there are
+many fields of improvement on it. Mostly, it reads the file
+to be compressed or decompressed as one big chunk, which may
+not be the best idea. Not only because of the memory usage;
+reading smaller blocks of data may increase the difference
+in frequency usage of the bytes in the content, which is
+where the Huffman algorithm benefits.
+
+This software is released into the public domain.
+
+ttcdt <dev@triptico.com>
