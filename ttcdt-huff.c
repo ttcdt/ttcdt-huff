@@ -6,7 +6,7 @@
 
     This software is released into the public domain.
 
-    This code is my own implementation of the Huffman encoding
+    This code is an implementation of the Huffman encoding
     algorithm. Though it has been written for teaching purposes,
     it's reasonably optimized for real use cases.
 
@@ -30,10 +30,10 @@ struct node {
 
 /** utility functions **/
 
-static unsigned char *write_bits(unsigned char *ob, int *im, int bits, int v)
-/* write some bits of @v into @ob, in reverse order */
+static unsigned char *write_bits(unsigned char *ob, int *im, int count, int v)
+/* write @count bits of @v into @ob, in reverse order */
 {
-    while (bits--) {
+    while (count--) {
         if (v & 0x1)
             *ob |= *im;
         else
@@ -53,12 +53,12 @@ static unsigned char *write_bits(unsigned char *ob, int *im, int bits, int v)
 
 
 static const unsigned char *read_bits(const unsigned char *ib,
-                                      int *im, int bits, int *v)
-/* read some bits from @ib into @v, in reverse order */
+                                      int *im, int count, int *v)
+/* read @count bits from @ib into @v, in reverse order */
 {
     int om = 0x1;
 
-    while (bits--) {
+    while (count--) {
         if (*ib & *im)
             *v |= om;
         else
@@ -141,17 +141,17 @@ int ttcdt_huff_build_tree_from_data(const unsigned char *ib, int uz, struct node
 
 
 void ttcdt_huff_build_symbols(const struct node *tree, int r,
-                        int b, int v, int *bits, int *value)
+                        int b, int v, int *n_bits, int *values)
 /* builds the bits and values from a tree (recursive) */
 {
     if (tree[r].b[0] == -1 && tree[r].b[1] == -1) {
         /* found leaf node */
-        bits[tree[r].c] = b;
-        value[tree[r].c] = v;
+        n_bits[tree[r].c] = b;
+        values[tree[r].c] = v;
     }
     else {
-        ttcdt_huff_build_symbols(tree, tree[r].b[0], b + 1, v,            bits, value);
-        ttcdt_huff_build_symbols(tree, tree[r].b[1], b + 1, v | (1 << b), bits, value);
+        ttcdt_huff_build_symbols(tree, tree[r].b[0], b + 1, v,            n_bits, values);
+        ttcdt_huff_build_symbols(tree, tree[r].b[1], b + 1, v | (1 << b), n_bits, values);
     }
 }
 
@@ -224,7 +224,7 @@ unsigned char *ttcdt_huff_compress_tree(const struct node *tree, unsigned char *
 
 
 unsigned char *ttcdt_huff_compress_stream(const unsigned char *ib, int uz,
-                                        unsigned char *ob, int *bits, int *value)
+                                        unsigned char *ob, int *n_bits, int *values)
 /* compresses a stream of bytes in @ib to Huffman symbols written onto @ob.
    Returns the pointer to the next byte of @ob */
 {
@@ -232,7 +232,7 @@ unsigned char *ttcdt_huff_compress_stream(const unsigned char *ib, int uz,
     int im = 0x80;
 
     for (n = 0; n < uz; n++)
-        ob = write_bits(ob, &im, bits[ib[n]], value[ib[n]]);
+        ob = write_bits(ob, &im, n_bits[ib[n]], values[ib[n]]);
 
     if (im != 0x80)
         ob++;
@@ -328,7 +328,6 @@ const unsigned char *ttcdt_huff_decompress_stream(const struct node *tree, int r
 
     for (n = 0; n < uz; n++) {
         int c = -1;
-        int s = 0;
         int nr = r;
 
         do {
@@ -338,9 +337,11 @@ const unsigned char *ttcdt_huff_decompress_stream(const struct node *tree, int r
             if (tree[nr].b[0] == -1 && tree[nr].b[1] == -1)
                 c = tree[nr].c;     /* symbol found */
             else {
-                s <<= 1;
-                ib = read_bits(ib, &im, 1, &s);
-                nr = tree[nr].b[s & 0x01];
+                int b;
+
+                /* pick the branch */
+                ib = read_bits(ib, &im, 1, &b);
+                nr = tree[nr].b[b & 0x01];
             }
         } while (c == -1);
 
@@ -395,8 +396,8 @@ unsigned char *ttcdt_huff_compress(const unsigned char *ib, int uz, unsigned cha
 {
     struct node tree[NUM_NODES];
     int r;
-    int bits[256];
-    int value[256];
+    int n_bits[256];
+    int values[256];
     int im = 0x80;
 
     /* build a tree using this data buffer */
@@ -407,7 +408,7 @@ unsigned char *ttcdt_huff_compress(const unsigned char *ib, int uz, unsigned cha
 #endif
 
     /* build bits and values */
-    ttcdt_huff_build_symbols(tree, r, 0, 0, bits, value);
+    ttcdt_huff_build_symbols(tree, r, 0, 0, n_bits, values);
 
     /* store the number of bytes the decompressed data contains */
     ob = write_bits(ob, &im, 24, uz);
@@ -416,7 +417,7 @@ unsigned char *ttcdt_huff_compress(const unsigned char *ib, int uz, unsigned cha
     ob = ttcdt_huff_compress_tree(tree, ob);
 
     /* compress the data stream */
-    return ttcdt_huff_compress_stream(ib, uz, ob, bits, value);
+    return ttcdt_huff_compress_stream(ib, uz, ob, n_bits, values);
 }
 
 

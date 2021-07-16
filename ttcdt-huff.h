@@ -8,7 +8,7 @@
 
 */
 
-#define TTCDT_HUFF_VERSION "1.05"
+#define TTCDT_HUFF_VERSION "1.06"
 
 /**
  * ttcdt_huff_compress - Compresses a block of data.
